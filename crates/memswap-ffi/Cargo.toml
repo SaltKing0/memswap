@@ -1,0 +1,13 @@
+[package]
+name = "memswap-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "memswap C ABI (cdylib) for embedding into Python/Node hosts."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+memswap-core = { workspace = true }

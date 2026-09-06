@@ -1,0 +1,16 @@
+[package]
+name = "memswap-adapters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "memswap harness adapters (Hermes, Codex, Claude Code) + plugin contract."
+
+[dependencies]
+memswap-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+walkdir = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

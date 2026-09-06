@@ -1,0 +1,20 @@
+[package]
+name = "memswap-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "memswap CLI (binary `mem`): portable agent memory interchange."
+
+[[bin]]
+name = "mem"
+path = "src/main.rs"
+
+[dependencies]
+memswap-core = { workspace = true }
+memswap-adapters = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
