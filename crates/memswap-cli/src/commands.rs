@@ -490,7 +490,9 @@ fn cmd_sign(a: SignArgs, json: bool) -> i32 {
     }
 }
 
-/// Write a hex secret key with owner-only permissions.
+/// Write a hex secret key with owner-only permissions (Unix; plain write
+/// elsewhere — Windows ACLs are handled by the user-profile directory).
+#[cfg(unix)]
 fn write_secret_file(path: &PathBuf, secret: &str) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
@@ -498,6 +500,17 @@ fn write_secret_file(path: &PathBuf, secret: &str) -> std::io::Result<()> {
         .write(true)
         .create_new(true)
         .mode(0o600)
+        .open(path)?;
+    f.write_all(secret.as_bytes())?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn write_secret_file(path: &PathBuf, secret: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
         .open(path)?;
     f.write_all(secret.as_bytes())?;
     Ok(())
