@@ -3,6 +3,7 @@ use std::path::Path;
 
 use memswap_core::Result;
 
+use crate::claude::ClaudeAdapter;
 use crate::codex::CodexAdapter;
 use crate::hermes::HermesAdapter;
 use crate::model::Adapter;
@@ -18,6 +19,7 @@ impl AdapterRegistry {
         let mut r = AdapterRegistry::default();
         r.register(HermesAdapter);
         r.register(CodexAdapter);
+        r.register(ClaudeAdapter);
         r
     }
 

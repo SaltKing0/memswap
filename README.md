@@ -71,7 +71,7 @@ Claude    ─┘     (read/write, provenance-preserving)
 
 - **M1 (now):** core store + Hermes adapter + CLI + golden/round-trip/tamper tests.
 - **M2:** git-like commit hash-chain, `log`/`diff`, ed25519 signing. **Shipped.**
-- **M3:** Codex + Claude Code adapters, merge strategies, golden files.
+- **M3:** Codex + Claude Code adapters, merge strategies, golden files. **Shipped.**
 - **M4:** plugin ABI + FFI expansion.
 - **M5:** packaging (brew, crates.io, pip/npm wrappers).
 

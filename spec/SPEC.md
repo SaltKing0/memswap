@@ -3,7 +3,7 @@
 **Status:** Draft (v0.1) for implementation
 **Spec version:** 1.0 (draft)
 **License:** Apache-2.0
-**Canonical repo:** https://github.com/memswap-org/memswap
+**Canonical repo:** https://github.com/SaltKing0/memswap
 
 > **The portable memory interchange format.** Move your agent's memory between
 > Hermes, Codex, and Claude Code losslessly, and pin the facts compaction must
@@ -109,9 +109,9 @@ used for export placement only.
 
 | Harness | Location | Adapter maps |
 |---|---|---|
-| **Hermes** | `~/.hermes/memories/{MEMORY.md,USER.md}` (flat `§`-delimited, char-capped) | `hermes/memory` (fact), `hermes/user` (user) |
-| **Codex** | `~/.codex/AGENTS.md` (global instructions, ~32 KiB) + generated `~/.codex/memories/` | `codex/agents` (instruction); `memories/` read-only |
-| **Claude Code** | `~/.claude/CLAUDE.md`, `~/.claude/memory/**`, `~/.claude/projects/<mapped>/memory/MEMORY.md` | `claude/...` (instruction/fact/project) |
+| **Hermes** | `~/.hermes/memories/{MEMORY.md,USER.md}` (flat `§`-delimited, char-capped) | `hermes/memory` (fact), `hermes/user` (user) — **implemented** |
+| **Codex** | `~/.codex/AGENTS.md` (global instructions, ~32 KiB) + generated `~/.codex/memories/` (MEMORY.md handbook, memory_summary.md 5k-token index, rollout_summaries/, skills/) | `codex/agents` (instruction, only write target), `codex/memory`, `codex/memory_summary`, `codex/rollout/*`, `codex/skill/*` — **implemented; `memories/` is generated state, read-only** |
+| **Claude Code** | `~/.claude/CLAUDE.md` + `~/.claude/projects/<mapped>/memory/` (MEMORY.md index 200-line/25 KiB cap, `<type>_<slug>.md` per-memory files with YAML frontmatter; native types user/feedback/project/reference) | `claude/claude_md`, `claude/project/<key>/index`, `claude/<name>` with `claude-type:*` tags — **implemented; index entries are derived views, never written back** |
 
 Round-trip **MUST** be lossless: `export -> import -> export` is idempotent and
 byte-identical. `content_hash` MUST be stable across export/import.
