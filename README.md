@@ -43,7 +43,9 @@ cargo build --release
 | `mem verify --dir <d>` | Verify integrity / tamper-evidence (exit 4 on failure) |
 | `mem doctor` | Probe harnesses and report status |
 | `mem adapters list` | List built-in adapters |
-| `mem log` / `mem diff` / `mem migrate` | M2 |
+| `mem log` / `mem diff` | shipped |
+| `mem keygen` / `mem sign` | shipped |
+| `mem migrate` | M6 |
 
 Exit codes: `0` ok · `1` error · `2` usage · `3` harness not found · `4` verify
 failure · `5` conflict.
@@ -68,7 +70,7 @@ Claude    ─┘     (read/write, provenance-preserving)
 ## Roadmap
 
 - **M1 (now):** core store + Hermes adapter + CLI + golden/round-trip/tamper tests.
-- **M2:** git-like commit hash-chain, `log`/`diff`, ed25519 signing.
+- **M2:** git-like commit hash-chain, `log`/`diff`, ed25519 signing. **Shipped.**
 - **M3:** Codex + Claude Code adapters, merge strategies, golden files.
 - **M4:** plugin ABI + FFI expansion.
 - **M5:** packaging (brew, crates.io, pip/npm wrappers).

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// The container's trust root. `index_hash` binds MANIFEST to the INDEX; the
 /// per-entry `content_hash` (in INDEX) binds each body to its object.
+/// `head_hash` binds the manifest to the tip of the commit chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
     pub schema_version: u32,
@@ -12,6 +13,9 @@ pub struct Manifest {
     pub profile: Option<String>,
     /// blake3 of the canonical INDEX.json bytes at write time.
     pub index_hash: String,
+    /// blake3 of the tip commit (empty when the store has no history yet).
+    #[serde(default)]
+    pub head_hash: String,
 }
 
 impl Manifest {
@@ -23,6 +27,7 @@ impl Manifest {
             harness_origin: harness_origin.to_string(),
             profile,
             index_hash: String::new(),
+            head_hash: String::new(),
         }
     }
 }

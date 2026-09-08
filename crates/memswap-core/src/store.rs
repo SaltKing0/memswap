@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::entry::Entry;
 use crate::error::{Error, Result};
 use crate::hash::blake3_hex;
+use crate::history;
 use crate::manifest::Manifest;
 
 pub fn now_iso8601() -> String {
@@ -12,23 +13,29 @@ pub fn now_iso8601() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    // Compact UTC timestamp (RFC3339 without sub-second). Good enough for M1.
-    format!("{}Z", secs)
+    // Compact UTC timestamp (RFC3339 without sub-second).
+    format!("{secs}Z")
 }
 
-/// A memswap store: a directory with MANIFEST.json, INDEX.json, objects/ and refs/.
+/// A memswap store: MANIFEST.json, INDEX.json, objects/, refs/, commits/.
 #[derive(Debug, Clone)]
 pub struct Store {
     pub dir: PathBuf,
 }
 
-/// Result of `verify` — a structural/tamper report.
+/// Result of `verify` — structural, chain, and signature report.
 #[derive(Debug, Clone)]
 pub struct VerifyReport {
     pub entries: usize,
     pub objects_ok: usize,
     pub refs_ok: usize,
     pub manifest_ok: bool,
+    /// Commit chain intact (hashes recompute, parents link, HEAD binds).
+    pub chain_ok: bool,
+    /// Number of commits in the chain.
+    pub commits: usize,
+    /// `None` = store is unsigned; `Some(b)` = SIG present and valid/invalid.
+    pub signature_ok: Option<bool>,
     pub ok: bool,
 }
 
@@ -62,7 +69,7 @@ impl Store {
             dir: dir.to_path_buf(),
         };
         store.write_manifest(&manifest)?;
-        store.write_index(&[])?;
+        store.write_index(&[], "init")?;
         Ok(store)
     }
 
@@ -95,23 +102,32 @@ impl Store {
         Ok(serde_json::from_slice(&raw)?)
     }
 
-    fn write_index(&self, entries: &[Entry]) -> Result<()> {
+    /// Write the index, re-bind the manifest, and append a commit capturing
+    /// the new state. Every mutating path funnels through here.
+    fn write_index(&self, entries: &[Entry], message: &str) -> Result<()> {
         let raw = serde_json::to_vec_pretty(entries)?;
         let hash = blake3_hex(&raw);
         fs::write(self.index_path(), &raw)?;
-        // Re-bind the manifest to the new index.
+
+        // Re-bind the manifest to the new index and chain tip.
+        let parent = history::head(&self.dir)?;
         let mut m = self.read_manifest()?;
         m.index_hash = hash;
+        m.head_hash = String::new(); // rebound below after the commit exists
+        self.write_manifest(&m)?;
+
+        let commit = history::append(&self.dir, parent, message, entries)?;
+        let mut m = self.read_manifest()?;
+        m.head_hash = commit.commit_hash;
         self.write_manifest(&m)?;
         Ok(())
     }
 
     /// Write (or replace) an entry. Stores the body as a content-addressed
-    /// object, updates the ref, and rewrites INDEX.json.
+    /// object, updates the ref, rewrites INDEX.json, and appends a commit.
     pub fn write_entry(&self, entry: &Entry) -> Result<()> {
         let hash = entry.compute_hash();
         if entry.content_hash.is_empty() {
-            // caller may have left it empty; normalize it
             let mut e = entry.clone();
             e.content_hash = hash.clone();
             return self.write_entry(&e);
@@ -122,18 +138,11 @@ impl Store {
                 entry.id, entry.content_hash, hash
             )));
         }
-        // Store object (idempotent — content-addressed).
-        let obj = self.objects_dir().join(&hash);
-        if !obj.exists() {
-            fs::write(obj, entry.body.as_bytes())?;
-        }
-        // Write ref: <id> -> content_hash.
-        fs::write(self.refs_dir().join(sanitize_id(&entry.id)), &hash)?;
-        // Update index.
+        self.store_object(entry)?;
         let mut entries = self.read_index()?;
         entries.retain(|e| e.id != entry.id);
         entries.push(entry.clone());
-        self.write_index(&entries)?;
+        self.write_index(&entries, &format!("write {}", entry.id))?;
         Ok(())
     }
 
@@ -151,14 +160,21 @@ impl Store {
                     e.id
                 )));
             }
-            let obj = self.objects_dir().join(&e.content_hash);
-            if !obj.exists() {
-                fs::write(obj, e.body.as_bytes())?;
-            }
-            fs::write(self.refs_dir().join(sanitize_id(&e.id)), &e.content_hash)?;
+            self.store_object(&e)?;
             normalized.push(e);
         }
-        self.write_index(&normalized)?;
+        let n = normalized.len();
+        self.write_index(&normalized, &format!("snapshot ({n} entries)"))?;
+        Ok(())
+    }
+
+    /// Persist body object + ref for one normalized entry.
+    fn store_object(&self, e: &Entry) -> Result<()> {
+        let obj = self.objects_dir().join(&e.content_hash);
+        if !obj.exists() {
+            fs::write(obj, e.body.as_bytes())?;
+        }
+        fs::write(self.refs_dir().join(sanitize_id(&e.id)), &e.content_hash)?;
         Ok(())
     }
 
@@ -179,7 +195,7 @@ impl Store {
         Ok(out)
     }
 
-    /// Verify structural integrity and tamper-evidence.
+    /// Verify structural integrity, the commit chain, and the signature.
     pub fn verify(&self) -> Result<VerifyReport> {
         let manifest = self.read_manifest()?;
         let index_raw = fs::read(self.index_path())?;
@@ -189,24 +205,46 @@ impl Store {
         let mut refs_ok = 0;
         let mut all_ok = manifest_ok;
         for e in &entries {
-            // object hash matches its content_hash?
             let obj = self.objects_dir().join(&e.content_hash);
             match fs::read(&obj) {
                 Ok(bytes) if blake3_hex(&bytes) == e.content_hash => objects_ok += 1,
                 _ => all_ok = false,
             }
-            // ref points at an existing object?
             let refp = self.refs_dir().join(sanitize_id(&e.id));
             match fs::read_to_string(&refp) {
                 Ok(h) if h.trim() == e.content_hash && obj.exists() => refs_ok += 1,
                 _ => all_ok = false,
             }
         }
+
+        // Commit chain: recompute every hash and parent link.
+        let (chain_ok, commits) = history::verify_chain(&self.dir)?;
+        if !chain_ok {
+            all_ok = false;
+        }
+        // The manifest's head_hash must bind to the chain tip.
+        if let Some(tip) = history::head(&self.dir)? {
+            if manifest.head_hash != tip {
+                all_ok = false;
+            }
+        } else if !manifest.head_hash.is_empty() {
+            all_ok = false;
+        }
+
+        // Optional detached signature.
+        let signature_ok = crate::sign::verify_signature(&self.dir)?;
+        if signature_ok == Some(false) {
+            all_ok = false;
+        }
+
         Ok(VerifyReport {
             entries: entries.len(),
             objects_ok,
             refs_ok,
             manifest_ok,
+            chain_ok,
+            commits,
+            signature_ok,
             ok: all_ok && objects_ok == entries.len() && refs_ok == entries.len(),
         })
     }

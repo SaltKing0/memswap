@@ -50,7 +50,8 @@ how to store, rank, retrieve, summarize, or expire context *inside* one runtime
 ├── INDEX.json         # array of entries (metadata + content_hash)
 ├── objects/           # content-addressed blobs, blake3(body); body = UTF-8 markdown
 ├── refs/              # <entry-id> -> content_hash (git-like thin pointers)
-└── SIG                # OPTIONAL detached ed25519 signature over MANIFEST+INDEX (M2)
+└── commits/           # append-only commit chain: <commit_hash>.json
+└── SIG                # OPTIONAL detached ed25519 signature over MANIFEST+INDEX
 ```
 
 - `MANIFEST.json` and `INDEX.json` are the authoritative inputs.
@@ -91,9 +92,18 @@ used for export placement only.
    detects broken or retargeted pointers.
 3. **Manifest binding:** `MANIFEST.index_hash == blake3(INDEX.json bytes)` —
    detects index tampering.
-
-The full git-like commit hash-chain (`body_hash -> tree_hash -> commit_hash`,
-per-memory `parent_hash` version chains, ed25519 signing) is specified in **M2**.
+4. **Commit chain:** for every commit reachable from HEAD,
+   `commit_hash == blake3(canonical commit with hash field empty)`,
+   `tree_hash == blake3(canonical entry snapshot)`, and each `parent_hash`
+   links to the previous commit, terminating at a root commit;
+   `MANIFEST.head_hash` MUST equal the tip commit's hash. Detects history
+   rewriting, dangling parents, and stale manifests.
+5. **Signature (OPTIONAL):** when a `SIG` file is present, it MUST carry
+   `alg="ed25519"`, a hex verifying key, and a hex signature over
+   `blake3(MANIFEST.json bytes || INDEX.json bytes)`. The SIG covers the
+   manifest and index only — object integrity is enforced by rule 1. The
+   verifying key is self-contained but substitutable; relying parties that
+   need authenticity MUST pin the key out-of-band.
 
 ## 6. Interop with real harness formats
 

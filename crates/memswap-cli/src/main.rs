@@ -30,8 +30,12 @@ pub enum Command {
     Adapters(commands::AdaptersArgs),
     /// Show version history of a store.
     Log(commands::LogArgs),
-    /// Diff two stores or a store against HEAD.
+    /// Diff two revisions of a store (default: HEAD~1..HEAD).
     Diff(commands::DiffArgs),
+    /// Generate an ed25519 signing keypair.
+    Keygen(commands::KeygenArgs),
+    /// Sign a store's MANIFEST+INDEX (writes SIG).
+    Sign(commands::SignArgs),
     /// Rewrite a store to a new schema_version.
     Migrate(commands::MigrateArgs),
 }

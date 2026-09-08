@@ -90,14 +90,38 @@ pub enum AdaptersSub {
 pub struct LogArgs {
     #[arg(long)]
     pub dir: Option<PathBuf>,
+    /// Show full entry snapshots per commit (default: summary only).
+    #[arg(long)]
+    pub full: bool,
 }
 
 #[derive(Args)]
 pub struct DiffArgs {
+    /// From-revision: HEAD | HEAD~N | <hash> (default HEAD~1).
     #[arg(long)]
     pub from: Option<String>,
+    /// To-revision (default HEAD).
     #[arg(long)]
     pub to: Option<String>,
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct KeygenArgs {
+    /// Write the hex secret key to this file (created with 0600 perms).
+    #[arg(long)]
+    pub out: PathBuf,
+}
+
+#[derive(Args)]
+pub struct SignArgs {
+    /// Store dir (default ./memory.memfile).
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+    /// File holding the hex ed25519 secret key.
+    #[arg(long)]
+    pub key: PathBuf,
 }
 
 #[derive(Args)]
@@ -118,9 +142,11 @@ pub fn run(cmd: crate::Command, json: bool) -> i32 {
         crate::Command::Verify(a) => cmd_verify(a, json),
         crate::Command::Doctor(a) => cmd_doctor(a, json),
         crate::Command::Adapters(a) => cmd_adapters(a, json),
-        crate::Command::Log(_) => not_impl("log", "M2"),
-        crate::Command::Diff(_) => not_impl("diff", "M2"),
-        crate::Command::Migrate(_) => not_impl("migrate", "M2"),
+        crate::Command::Log(a) => cmd_log(a, json),
+        crate::Command::Diff(a) => cmd_diff(a, json),
+        crate::Command::Keygen(a) => cmd_keygen(a, json),
+        crate::Command::Sign(a) => cmd_sign(a, json),
+        crate::Command::Migrate(_) => not_impl("migrate", "M6"),
     }
 }
 
@@ -202,28 +228,31 @@ fn cmd_export(a: ExportArgs, json: bool) -> i32 {
         }
     };
 
-    match Store::init(&out, "memory", &harness, None) {
-        Ok(store) => {
-            if let Err(e) = store.replace_entries(&entries) {
+    // Upsert: init a fresh store or update an existing one (history chains).
+    let store = match Store::open(&out) {
+        Ok(s) => s,
+        Err(_) => match Store::init(&out, "memory", &harness, None) {
+            Ok(s) => s,
+            Err(e) => {
                 eprintln!("error: {e}");
                 return EXIT_ERROR;
             }
-            print_obj(
-                json,
-                &serde_json::json!({
-                    "ok": true,
-                    "harness": harness,
-                    "entries": entries.len(),
-                    "store": out.display().to_string(),
-                }),
-            );
-            EXIT_OK
-        }
-        Err(e) => {
-            eprintln!("error: {e}");
-            EXIT_ERROR
-        }
+        },
+    };
+    if let Err(e) = store.replace_entries(&entries) {
+        eprintln!("error: {e}");
+        return EXIT_ERROR;
     }
+    print_obj(
+        json,
+        &serde_json::json!({
+            "ok": true,
+            "harness": harness,
+            "entries": entries.len(),
+            "store": out.display().to_string(),
+        }),
+    );
+    EXIT_OK
 }
 
 fn cmd_import(a: ImportArgs, json: bool) -> i32 {
@@ -329,6 +358,9 @@ fn cmd_verify(a: VerifyArgs, json: bool) -> i32 {
                     "objects_ok": report.objects_ok,
                     "refs_ok": report.refs_ok,
                     "manifest_ok": report.manifest_ok,
+                    "chain_ok": report.chain_ok,
+                    "commits": report.commits,
+                    "signature_ok": report.signature_ok,
                 }),
             );
             if report.ok {
@@ -342,6 +374,133 @@ fn cmd_verify(a: VerifyArgs, json: bool) -> i32 {
             EXIT_ERROR
         }
     }
+}
+
+fn cmd_log(a: LogArgs, json: bool) -> i32 {
+    let dir = store_dir(a.dir);
+    match memswap_core::history::log(&dir) {
+        Ok(chain) => {
+            let commits: Vec<_> = chain
+                .iter()
+                .map(|c| {
+                    let mut row = serde_json::json!({
+                        "commit": c.commit_hash,
+                        "parent": if c.parent_hash.is_empty() { serde_json::Value::Null } else { serde_json::json!(c.parent_hash) },
+                        "tree": c.tree_hash,
+                        "timestamp": c.timestamp,
+                        "message": c.message,
+                        "entries": c.entries.len(),
+                    });
+                    if a.full {
+                        row["entry_ids"] = serde_json::json!(
+                            c.entries.iter().map(|e| e.id.clone()).collect::<Vec<_>>()
+                        );
+                    }
+                    row
+                })
+                .collect();
+            print_obj(json, &serde_json::json!({ "commits": commits }));
+            EXIT_OK
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+fn cmd_diff(a: DiffArgs, json: bool) -> i32 {
+    let dir = store_dir(a.dir);
+    match memswap_core::history::diff(&dir, a.from.as_deref(), a.to.as_deref()) {
+        Ok(report) => {
+            print_obj(
+                json,
+                &serde_json::json!({
+                    "from": report.from,
+                    "to": report.to,
+                    "added": report.added,
+                    "removed": report.removed,
+                    "changed": report.changed,
+                    "empty": report.is_empty(),
+                }),
+            );
+            EXIT_OK
+        }
+        Err(memswap_core::Error::NotFound(msg)) => {
+            eprintln!("error: {msg}");
+            EXIT_NOT_FOUND
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+fn cmd_keygen(a: KeygenArgs, json: bool) -> i32 {
+    match memswap_core::sign::keygen() {
+        Ok(kp) => {
+            if let Err(e) = write_secret_file(&a.out, &kp.secret_hex) {
+                eprintln!("error: {e}");
+                return EXIT_ERROR;
+            }
+            print_obj(
+                json,
+                &serde_json::json!({
+                    "ok": true,
+                    "key_file": a.out.display().to_string(),
+                    "public_key": kp.public_hex,
+                }),
+            );
+            EXIT_OK
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+fn cmd_sign(a: SignArgs, json: bool) -> i32 {
+    let dir = store_dir(a.dir);
+    let secret = match memswap_core::sign::load_secret(&a.key) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_ERROR;
+        }
+    };
+    match memswap_core::sign::sign_store(&dir, &secret) {
+        Ok(doc) => {
+            print_obj(
+                json,
+                &serde_json::json!({
+                    "ok": true,
+                    "store": dir.display().to_string(),
+                    "public_key": doc.public_key,
+                    "message": doc.message,
+                }),
+            );
+            EXIT_OK
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+/// Write a hex secret key with owner-only permissions.
+fn write_secret_file(path: &PathBuf, secret: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)?;
+    f.write_all(secret.as_bytes())?;
+    Ok(())
 }
 
 fn cmd_doctor(a: DoctorArgs, json: bool) -> i32 {
