@@ -1,11 +1,20 @@
 {
-  "name": "memswap-node",
+  "name": "memswap",
   "version": "0.1.0",
-  "description": "Node.js binding for memswap (portable agent memory interchange)",
-  "main": "memswap.js",
-  "license": "Apache-2.0",
+  "description": "Portable agent memory interchange format — Node binding over the memswap FFI (Hermes/Codex/Claude Code memory, lossless).",
   "type": "module",
+  "main": "memswap.js",
+  "files": ["memswap.js", "README.md", "lib"],
+  "keywords": ["ai-agents", "agent-memory", "llm", "hermes", "codex", "claude"],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SaltKing0/memswap"
+  },
   "dependencies": {
     "koffi": "^3.2.1"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

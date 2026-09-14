@@ -32,22 +32,37 @@ def _lib_name() -> str:
     return _LIB_NAMES.get(os.uname().sysname, _LIB_NAMES["Linux"])
 
 
+def _search_roots() -> list[Path]:
+    """Candidate roots, in priority order.
+
+    1. MEMSWAP_FFI env var (absolute lib path).
+    2. Bundled wheel lib dir (pip install memswap).
+    3. Repo target/{release,debug} (git checkout of memswap).
+    """
+    roots: list[Path] = []
+    here = Path(__file__).resolve().parent
+    roots.append(here / "lib")  # bundled in wheels
+    # git checkout: bindings/python/memswap/__init__.py -> repo root
+    repo = here.parents[2]
+    name = _lib_name()
+    roots.append(repo / "target" / "release" / name)
+    roots.append(repo / "target" / "debug" / name)
+    return roots
+
+
 def _find_lib() -> str:
     env = os.environ.get("MEMSWAP_FFI")
     if env:
         return env
-    root = Path(__file__).resolve().parents[3]  # bindings/python/memswap -> repo root
     name = _lib_name()
-    candidates = [
-        root / "target" / "release" / name,
-        root / "target" / "debug" / name,
-    ]
-    for c in candidates:
-        if c.exists():
-            return str(c)
+    for root in _search_roots():
+        # Wheel layout: lib/<name>; repo layout: root itself is the file.
+        candidate = root / name if root.is_dir() else root
+        if candidate.exists():
+            return str(candidate)
     raise FileNotFoundError(
-        "libmemswap_ffi not found; build it (cargo build -p memswap-ffi) "
-        "or set MEMSWAP_FFI=/path/to/libmemswap_ffi.so"
+        "libmemswap_ffi not found; build it (cargo build -p memswap-ffi), "
+        "reinstall the wheel, or set MEMSWAP_FFI=/path/to/libmemswap_ffi.so"
     )
 
 

@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, ext: "" }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, ext: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, ext: "" }
+          - { os: macos-latest, target: aarch64-apple-darwin, ext: "" }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, ext: ".exe" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: build mem (release)
+        run: cargo build --release -p memswap-cli --target ${{ matrix.target }}
+      - name: build libmemswap_ffi (release, cdylib)
+        run: cargo build --release -p memswap-ffi --target ${{ matrix.target }}
+      - name: stage artifacts (unix)
+        if: runner.os != 'Windows'
+        run: |
+          T=${{ matrix.target }}
+          mkdir -p stage/mem
+          cp target/$T/release/mem stage/mem/
+          cp target/$T/release/libmemswap_ffi.so stage/mem/ 2>/dev/null \
+            || cp target/$T/release/libmemswap_ffi.dylib stage/mem/ 2>/dev/null || true
+          tar czf memswap-${{ github.ref_name }}-$T.tar.gz -C stage mem
+          shasum -a 256 memswap-${{ github.ref_name }}-$T.tar.gz > memswap-${{ github.ref_name }}-$T.tar.gz.sha256
+      - name: stage artifacts (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $T = "${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path stage/mem | Out-Null
+          Copy-Item "target/$T/release/mem.exe" "stage/mem/"
+          Copy-Item "target/$T/release/memswap_ffi.dll" "stage/mem/" -ErrorAction SilentlyContinue
+          Compress-Archive -Path stage/mem -DestinationPath "memswap-${{ github.ref_name }}-$T.zip"
+          $h = (Get-FileHash "memswap-${{ github.ref_name }}-$T.zip" -Algorithm SHA256).Hash.ToLower()
+          "$h  memswap-${{ github.ref_name }}-$T.zip" | Out-File "memswap-${{ github.ref_name }}-$T.zip.sha256" -Ascii
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: |
+            memswap-*.tar.gz*
+            memswap-*.zip*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+      - name: create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            dist/memswap-*.tar.gz
+            dist/memswap-*.tar.gz.sha256
+            dist/memswap-*.zip
+            dist/memswap-*.zip.sha256
