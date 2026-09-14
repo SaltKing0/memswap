@@ -1,0 +1,11 @@
+{
+  "name": "memswap-node",
+  "version": "0.1.0",
+  "description": "Node.js binding for memswap (portable agent memory interchange)",
+  "main": "memswap.js",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "koffi": "^3.2.1"
+  }
+}

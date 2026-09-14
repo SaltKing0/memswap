@@ -116,6 +116,27 @@ used for export placement only.
 Round-trip **MUST** be lossless: `export -> import -> export` is idempotent and
 byte-identical. `content_hash` MUST be stable across export/import.
 
+### 6.1 Dynamic adapters (plugins)
+
+Beyond the built-in adapters, memswap loads shared libraries at runtime from
+the directory named by `MEMSWAP_ADAPTERS` (colon/semicolon-separated paths).
+A plugin is a cdylib exporting the `memswap_plugin_*` C ABI:
+
+| Symbol | Signature | Meaning |
+|---|---|---|
+| `memswap_plugin_name` | `() -> const char*` | Static adapter name |
+| `memswap_plugin_version` | `() -> int32` | ABI version, must equal 1 |
+| `memswap_plugin_detect` | `(home, char** out) -> i32` | 0 + JSON `{"detected":[...]}` or nonzero if absent |
+| `memswap_plugin_read` | `(home, char** out) -> i32` | 0 + JSON array of canonical entries |
+| `memswap_plugin_write` | `(home, entries_json, strategy, char** out) -> i32` | 0 + JSON `{"written","truncated","skipped"}` |
+| `memswap_plugin_free` | `(ptr) -> void` | Frees any buffer the plugin handed out |
+
+JSON is the wire format so plugins never link against memswap internals —
+no ABI drift when the entry model evolves. The loader rejects plugins with a
+mismatched `memswap_plugin_version` and reports (does not swallow) missing
+symbols. `crates/sample-plugin` is the reference implementation (a toy
+"notes" harness reading `<home>/notes/*.md`).
+
 ## 7. Versioning & migration
 
 - `schema_version` is an integer in `MANIFEST.json`.

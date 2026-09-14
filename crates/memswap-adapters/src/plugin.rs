@@ -56,4 +56,14 @@ impl AdapterRegistry {
         })?;
         a.read(&ctx)
     }
+
+    /// Built-in adapters plus every dynamic plugin found under
+    /// `MEMSWAP_ADAPTERS` (a directory of shared libraries).
+    pub fn with_plugins() -> Self {
+        let mut r = Self::builtin();
+        for a in crate::dynamic::load_all() {
+            r.register(a);
+        }
+        r
+    }
 }

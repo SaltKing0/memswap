@@ -63,16 +63,22 @@ Claude    ─┘     (read/write, provenance-preserving)
 
 - **Core** (`memswap-core`): store, hashing, verify, merge.
 - **Adapters** (`memswap-adapters`): Hermes (M1), Codex (M3), Claude Code (M3),
-  plus a dlopen C-ABI plugin contract (M4).
-- **CLI** (`memswap-cli`): the `mem` binary.
-- **FFI** (`memswap-ffi`): C ABI cdylib for embedding into Python/Node hosts.
+  plus a dlopen C-ABI plugin loader (`MEMSWAP_ADAPTERS` env var) and the
+  `sample-plugin` reference implementation (M4).
+- **CLI** (`mem`): the `mem` binary — every command takes `--json`.
+- **FFI** (`memswap-ffi`): C ABI cdylib (`memswap_read_entries`,
+  `memswap_write_entries`, `memswap_log`, `memswap_verify_store`,
+  `memswap_store_info`, JSON wire format).
+- **Bindings**: `bindings/python` (ctypes, zero deps) and `bindings/node`
+  (koffi, one dep) over the FFI cdylib.
 
 ## Roadmap
 
 - **M1 (now):** core store + Hermes adapter + CLI + golden/round-trip/tamper tests.
 - **M2:** git-like commit hash-chain, `log`/`diff`, ed25519 signing. **Shipped.**
 - **M3:** Codex + Claude Code adapters, merge strategies, golden files. **Shipped.**
-- **M4:** plugin ABI + FFI expansion.
+- **M4:** plugin ABI (dlopen, `memswap_plugin_*` C contract), sample plugin,
+  FFI expansion, Python + Node bindings, `--json` hardening. **Shipped.**
 - **M5:** packaging (brew, crates.io, pip/npm wrappers).
 
 See `spec/SPEC.md` for the format, `CONTRIBUTING.md` for governance.

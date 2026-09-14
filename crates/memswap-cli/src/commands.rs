@@ -150,6 +150,11 @@ pub fn run(cmd: crate::Command, json: bool) -> i32 {
     }
 }
 
+/// The registry the CLI uses: built-ins + dynamic plugins (M4).
+fn registry() -> AdapterRegistry {
+    AdapterRegistry::with_plugins()
+}
+
 fn not_impl(cmd: &str, milestone: &str) -> i32 {
     eprintln!("`mem {cmd}` is not implemented in M1 (planned for {milestone}).");
     EXIT_ERROR
@@ -198,7 +203,7 @@ fn cmd_init(a: InitArgs, json: bool) -> i32 {
 }
 
 fn cmd_export(a: ExportArgs, json: bool) -> i32 {
-    let registry = AdapterRegistry::builtin();
+    let registry = registry();
     let harness = if a.harness.eq_ignore_ascii_case("AUTO") {
         // Pick the first detected harness under the default homes.
         let home = default_home("hermes");
@@ -256,7 +261,7 @@ fn cmd_export(a: ExportArgs, json: bool) -> i32 {
 }
 
 fn cmd_import(a: ImportArgs, json: bool) -> i32 {
-    let registry = AdapterRegistry::builtin();
+    let registry = registry();
     let harness = a.harness.to_lowercase();
     let home = a.home.unwrap_or_else(|| default_home(&harness));
     let dir = store_dir(a.dir);
@@ -378,6 +383,20 @@ fn cmd_verify(a: VerifyArgs, json: bool) -> i32 {
 
 fn cmd_log(a: LogArgs, json: bool) -> i32 {
     let dir = store_dir(a.dir);
+    // Fail like `verify` on a missing/invalid store instead of reporting an
+    // empty chain (a nonexistent dir would otherwise look like zero commits).
+    if let Err(e) = Store::open(&dir) {
+        return match e {
+            Error::NotFound(msg) => {
+                eprintln!("error: {msg}");
+                EXIT_NOT_FOUND
+            }
+            e => {
+                eprintln!("error: {e}");
+                EXIT_ERROR
+            }
+        };
+    }
     match memswap_core::history::log(&dir) {
         Ok(chain) => {
             let commits: Vec<_> = chain
@@ -411,6 +430,19 @@ fn cmd_log(a: LogArgs, json: bool) -> i32 {
 
 fn cmd_diff(a: DiffArgs, json: bool) -> i32 {
     let dir = store_dir(a.dir);
+    // Same store-existence contract as `log` (see cmd_log).
+    if let Err(e) = Store::open(&dir) {
+        return match e {
+            Error::NotFound(msg) => {
+                eprintln!("error: {msg}");
+                EXIT_NOT_FOUND
+            }
+            e => {
+                eprintln!("error: {e}");
+                EXIT_ERROR
+            }
+        };
+    }
     match memswap_core::history::diff(&dir, a.from.as_deref(), a.to.as_deref()) {
         Ok(report) => {
             print_obj(
@@ -517,7 +549,7 @@ fn write_secret_file(path: &PathBuf, secret: &str) -> std::io::Result<()> {
 }
 
 fn cmd_doctor(a: DoctorArgs, json: bool) -> i32 {
-    let registry = AdapterRegistry::builtin();
+    let registry = registry();
     let base = a
         .home
         .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or(".".into())));
@@ -544,7 +576,7 @@ fn cmd_doctor(a: DoctorArgs, json: bool) -> i32 {
 }
 
 fn cmd_adapters(a: AdaptersArgs, json: bool) -> i32 {
-    let registry = AdapterRegistry::builtin();
+    let registry = registry();
     match a.sub {
         AdaptersSub::List => {
             let names = registry.names();

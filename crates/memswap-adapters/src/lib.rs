@@ -4,12 +4,14 @@
 
 pub mod claude;
 pub mod codex;
+pub mod dynamic;
 pub mod hermes;
 pub mod model;
 pub mod plugin;
 
 pub use claude::ClaudeAdapter;
 pub use codex::CodexAdapter;
+pub use dynamic::DynamicAdapter;
 pub use hermes::HermesAdapter;
 pub use model::{Adapter, HarnessContext, MergeStrategy, WriteReport};
 pub use plugin::AdapterRegistry;

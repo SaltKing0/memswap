@@ -5,6 +5,7 @@ members = [
     "crates/memswap-adapters",
     "crates/memswap-cli",
     "crates/memswap-ffi",
+    "crates/sample-plugin",
 ]
 
 [workspace.package]

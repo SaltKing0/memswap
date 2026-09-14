@@ -11,3 +11,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 memswap-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
