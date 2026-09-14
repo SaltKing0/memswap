@@ -12,7 +12,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/memswap-org/memswap"
+repository = "https://github.com/SaltKing0/memswap"
 authors = ["memswap contributors"]
 
 [workspace.dependencies]
