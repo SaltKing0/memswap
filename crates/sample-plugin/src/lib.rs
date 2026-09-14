@@ -32,10 +32,10 @@ pub unsafe extern "C" fn memswap_plugin_detect(home: *const c_char, out: *mut *m
     if !dir.is_dir() {
         return 1; // not detected
     }
-    let json = format!(
-        r#"{{"detected":[{{"label":"notes_dir","path":"{}"}}]}}"#,
-        dir.display()
-    );
+    let json = serde_json::json!({
+        "detected": [{ "label": "notes_dir", "path": dir.display().to_string() }]
+    })
+    .to_string();
     match CString::new(json) {
         Ok(c) => {
             unsafe { *out = c.into_raw() };

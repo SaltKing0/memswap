@@ -315,17 +315,24 @@ fn str_vec(v: Option<&serde_json::Value>) -> Vec<String> {
 pub fn plugin_dirs() -> Vec<PathBuf> {
     let mut dirs = vec![];
     if let Ok(var) = std::env::var("MEMSWAP_ADAPTERS") {
-        for p in var.split(':').filter(|s| !s.is_empty()) {
-            dirs.push(PathBuf::from(p));
+        // Path separator is platform-native (`:` on Unix, `;` on Windows).
+        for p in std::env::split_paths(&var) {
+            if p.as_os_str().is_empty() {
+                continue;
+            }
+            dirs.push(p);
         }
     }
-    if let Ok(home) = std::env::var("HOME") {
-        dirs.push(
-            PathBuf::from(home)
-                .join(".config")
-                .join("memswap")
-                .join("adapters"),
-        );
+    let config_home = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var("HOME")
+                .ok()
+                .map(|h| PathBuf::from(h).join(".config"))
+        });
+    if let Some(cfg) = config_home {
+        dirs.push(cfg.join("memswap").join("adapters"));
     }
     dirs
 }

@@ -163,7 +163,8 @@ fn plugin_discovery_via_env_var() {
     let target = tempfile::tempdir().unwrap();
     let so = build_sample_plugin(target.path());
     let plug_dir = tempfile::tempdir().unwrap();
-    fs::copy(&so, plug_dir.path().join("sample_plugin.so")).unwrap();
+    // Keep the real artifact name (libmemswap_sample_plugin.so / .dll / .dylib).
+    fs::copy(&so, plug_dir.path().join(so.file_name().unwrap())).unwrap();
 
     // load_all must find it through MEMSWAP_ADAPTERS.
     unsafe {
