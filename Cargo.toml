@@ -16,8 +16,8 @@ repository = "https://github.com/SaltKing0/memswap"
 authors = ["memswap contributors"]
 
 [workspace.dependencies]
-memswap-core = { path = "crates/memswap-core" }
-memswap-adapters = { path = "crates/memswap-adapters" }
+memswap-core = { path = "crates/memswap-core", version = "0.1.0" }
+memswap-adapters = { path = "crates/memswap-adapters", version = "0.1.0" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
