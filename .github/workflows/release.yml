@@ -9,6 +9,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # cross-linker for aarch64-linux: without it rustc falls back to host `cc`,
+  # whose lld shim runs in x86_64 mode and rejects --fix-cortex-a53-843419
+  CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
 jobs:
   build:
