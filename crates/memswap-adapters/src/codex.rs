@@ -85,7 +85,7 @@ impl Adapter for CodexAdapter {
         for (label, path) in &ctx.detected {
             match label.as_str() {
                 "agents" => {
-                    let body = fs::read_to_string(path).map_err(Error::Io)?;
+                    let body = memswap_core::text::read_text(path).map_err(Error::Io)?;
                     out.push(Entry {
                         id: "codex/agents".into(),
                         kind: EntryKind::Instruction,
@@ -104,7 +104,7 @@ impl Adapter for CodexAdapter {
                     });
                 }
                 "memory" => {
-                    let body = fs::read_to_string(path).map_err(Error::Io)?;
+                    let body = memswap_core::text::read_text(path).map_err(Error::Io)?;
                     out.push(Entry {
                         id: "codex/memory".into(),
                         kind: EntryKind::Index,
@@ -123,7 +123,7 @@ impl Adapter for CodexAdapter {
                     });
                 }
                 "summary" => {
-                    let body = fs::read_to_string(path).map_err(Error::Io)?;
+                    let body = memswap_core::text::read_text(path).map_err(Error::Io)?;
                     out.push(Entry {
                         id: "codex/memory_summary".into(),
                         kind: EntryKind::Index,
@@ -150,7 +150,7 @@ impl Adapter for CodexAdapter {
                         .collect();
                     files.sort();
                     for p in files {
-                        let body = fs::read_to_string(&p).map_err(Error::Io)?;
+                        let body = memswap_core::text::read_text(&p).map_err(Error::Io)?;
                         let title = Self::frontmatter_description(&body)
                             .unwrap_or_else(|| "rollout summary".into());
                         out.push(Entry {
@@ -185,7 +185,7 @@ impl Adapter for CodexAdapter {
                         if !skill.exists() {
                             continue;
                         }
-                        let body = fs::read_to_string(&skill).map_err(Error::Io)?;
+                        let body = memswap_core::text::read_text(&skill).map_err(Error::Io)?;
                         let name = d.file_name().unwrap().to_string_lossy().to_string();
                         let title = Self::frontmatter_description(&body)
                             .unwrap_or_else(|| format!("skill {name}"));
@@ -227,7 +227,7 @@ impl Adapter for CodexAdapter {
             entries.iter().filter(|e| e.id == "codex/agents").collect();
 
         let path = dir.join("AGENTS.md");
-        let existing = fs::read_to_string(&path).unwrap_or_default();
+        let existing = memswap_core::text::read_text(&path).unwrap_or_default();
 
         match strategy {
             MergeStrategy::Keep => {

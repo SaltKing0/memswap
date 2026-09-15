@@ -13,6 +13,7 @@ pub mod manifest;
 pub mod memfile;
 pub mod sign;
 pub mod store;
+pub mod text;
 
 pub use entry::{Entry, EntryKind, Scope, Source};
 pub use error::{Error, Result};

@@ -1,0 +1,12 @@
+# Test fixtures are hashed byte-for-byte by the golden corpus, so they must
+# check out identically on every platform. Without this, Windows checkouts
+# turn LF into CRLF and the golden comparison fails for a reason that has
+# nothing to do with adapter behaviour.
+tests/fixtures/** -text
+
+# Everything else: normalize to LF in the repository.
+* text=auto eol=lf
+
+# Binary-ish artifacts.
+*.png binary
+*.memfile binary

@@ -53,7 +53,7 @@ impl Adapter for HermesAdapter {
     fn read(&self, ctx: &HarnessContext) -> Result<Vec<Entry>> {
         let mut out = vec![];
         for (label, path) in &ctx.detected {
-            let body = fs::read_to_string(path).map_err(Error::Io)?;
+            let body = memswap_core::text::read_text(path).map_err(Error::Io)?;
             let (id, kind, title, limit) = match label.as_str() {
                 "user" => (
                     "hermes/user",

@@ -57,7 +57,7 @@ fn native_kind(t: &str) -> (EntryKind, &'static str) {
 }
 
 fn read_one_memory(path: &Path, project: Option<&str>) -> Result<Option<Entry>> {
-    let raw = fs::read_to_string(path).map_err(Error::Io)?;
+    let raw = memswap_core::text::read_text(path).map_err(Error::Io)?;
     let (meta, body) = parse_frontmatter(&raw);
     let name = path
         .file_stem()
@@ -156,7 +156,7 @@ impl Adapter for ClaudeAdapter {
         for (label, path) in &ctx.detected {
             match label.as_str() {
                 "claude_md" => {
-                    let body = fs::read_to_string(path).map_err(Error::Io)?;
+                    let body = memswap_core::text::read_text(path).map_err(Error::Io)?;
                     out.push(Entry {
                         id: "claude/claude_md".into(),
                         kind: EntryKind::Instruction,
@@ -209,7 +209,7 @@ impl Adapter for ClaudeAdapter {
                     report.written += 1;
                 }
                 MergeStrategy::Merge => {
-                    let existing = fs::read_to_string(&path).unwrap_or_default();
+                    let existing = memswap_core::text::read_text(&path).unwrap_or_default();
                     if existing.is_empty() {
                         fs::write(&path, &e.body)?;
                         report.written += 1;
@@ -292,7 +292,7 @@ fn read_memory_dir(dir: &Path, project: Option<&str>) -> Result<Vec<Entry>> {
     let mut out = vec![];
     let index = dir.join("MEMORY.md");
     if index.exists() {
-        let body = fs::read_to_string(&index).map_err(Error::Io)?;
+        let body = memswap_core::text::read_text(&index).map_err(Error::Io)?;
         out.push(Entry {
             id: match project {
                 Some(k) => format!("claude/project/{k}/index"),
