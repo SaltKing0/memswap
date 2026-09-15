@@ -1,0 +1,63 @@
+[
+  {
+    "id": "codex/agents",
+    "kind": "instruction",
+    "title": "Codex AGENTS.md",
+    "body": "# AGENTS.md\n\n## Project conventions\n\n- Rust workspace; run `cargo fmt` and `cargo clippy --all-targets` before committing.\n- Never squash-merge; use `--no-ff` merge commits.\n- All user-facing text in English.",
+    "scope": "global",
+    "source": {
+      "harness": "codex",
+      "path": "<HOME>/.codex/AGENTS.md"
+    },
+    "tags": [],
+    "content_hash": "14f07af4ca74bf044c09f49adadd6edd0753108d7264f69b7498d2fdcd80cdfb"
+  },
+  {
+    "id": "codex/memory_summary",
+    "kind": "index",
+    "title": "Codex memory summary (always-loaded index)",
+    "body": "# Memory summary\n\nIndex of durable memories. 5k-token budget.\n\n- [build](rollout_summaries/build.md) — cargo gates and release flow\n- [style](skills/style/SKILL.md) — writing conventions",
+    "scope": "global",
+    "source": {
+      "harness": "codex",
+      "path": "<HOME>/.codex/memories/memory_summary.md"
+    },
+    "tags": [
+      "generated",
+      "index"
+    ],
+    "content_hash": "0406cf6ea66085cf7fd8f7ae5495a8dd38cc099ea8afd29401b3f5fadcec5842"
+  },
+  {
+    "id": "codex/rollout/build",
+    "kind": "other",
+    "title": "rollout summary",
+    "body": "---\ntitle: Build and release flow\ndate: 2026-09-14\n---\n\nRan the full release matrix. Notes:\n\n1. `cargo fmt --check` first.\n2. clippy must be warning-free.\n3. Tag `v*` triggers the release workflow.",
+    "scope": "global",
+    "source": {
+      "harness": "codex",
+      "path": "<HOME>/.codex/memories/rollout_summaries/build.md"
+    },
+    "tags": [
+      "generated",
+      "rollout"
+    ],
+    "content_hash": "3b350b261dc7971e34452e210a44898e8c7f9d4a18a2ad08f9da0cbafcf62ca0"
+  },
+  {
+    "id": "codex/skill/style",
+    "kind": "other",
+    "title": "Writing conventions for this repo.",
+    "body": "---\nname: style\ndescription: Writing conventions for this repo.\n---\n\nUse plain, direct prose. No filler. English only.",
+    "scope": "global",
+    "source": {
+      "harness": "codex",
+      "path": "<HOME>/.codex/memories/skills/style/SKILL.md"
+    },
+    "tags": [
+      "generated",
+      "skill"
+    ],
+    "content_hash": "622733bfec03628bc9eacb2f24a7d775b22975f9b9dc1f63921a53907d2277e1"
+  }
+]

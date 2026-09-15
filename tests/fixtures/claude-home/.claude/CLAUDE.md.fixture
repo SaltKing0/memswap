@@ -1,0 +1,3 @@
+# Project instructions
+
+This repository is a Rust workspace. Prefer `cargo` over manual toolchain calls.

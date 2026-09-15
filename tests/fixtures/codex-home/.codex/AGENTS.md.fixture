@@ -1,0 +1,7 @@
+# AGENTS.md
+
+## Project conventions
+
+- Rust workspace; run `cargo fmt` and `cargo clippy --all-targets` before committing.
+- Never squash-merge; use `--no-ff` merge commits.
+- All user-facing text in English.

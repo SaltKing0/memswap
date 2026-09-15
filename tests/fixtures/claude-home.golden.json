@@ -1,0 +1,63 @@
+[
+  {
+    "id": "claude/claude_md",
+    "kind": "instruction",
+    "title": "Claude Code global instructions (CLAUDE.md)",
+    "body": "# Project instructions\n\nThis repository is a Rust workspace. Prefer `cargo` over manual toolchain calls.",
+    "scope": "global",
+    "source": {
+      "harness": "claude",
+      "path": "<HOME>/.claude/CLAUDE.md"
+    },
+    "tags": [],
+    "content_hash": "32beae98a49bc14f470266585cf7c74ece96de85acefd92a726a687b67240fe5"
+  },
+  {
+    "id": "claude/project/-home-ubuntu-memswap/index",
+    "kind": "index",
+    "title": "Claude Code project memory index (MEMORY.md)",
+    "body": "- [user_niklas](user_niklas.md) — who the user is\n- [feedback_style](feedback_style.md) — review feedback style",
+    "scope": "project",
+    "project": "-home-ubuntu-memswap",
+    "source": {
+      "harness": "claude",
+      "path": "<HOME>/.claude/projects/-home-ubuntu-memswap/memory/MEMORY.md"
+    },
+    "tags": [
+      "index"
+    ],
+    "content_hash": "9f81cb001f65367286dafec1a0aae70a2d738d13ca0558e421c780b9cb487816"
+  },
+  {
+    "id": "claude/feedback_style",
+    "kind": "instruction",
+    "title": "Review feedback style",
+    "body": "Show the draft before writing it. Verify claims against tool output.",
+    "scope": "project",
+    "project": "-home-ubuntu-memswap",
+    "source": {
+      "harness": "claude",
+      "path": "<HOME>/.claude/projects/-home-ubuntu-memswap/memory/feedback_style.md"
+    },
+    "tags": [
+      "claude-type:feedback"
+    ],
+    "content_hash": "de45fcb8d3e5dbab3c8f10937298d93087c4c8686ab26a7e21e9df5e36d886ab"
+  },
+  {
+    "id": "claude/user_niklas",
+    "kind": "user",
+    "title": "Who the user is",
+    "body": "Niklas Reckstad. Communicates in German, prefers numbered step-by-step output.",
+    "scope": "project",
+    "project": "-home-ubuntu-memswap",
+    "source": {
+      "harness": "claude",
+      "path": "<HOME>/.claude/projects/-home-ubuntu-memswap/memory/user_niklas.md"
+    },
+    "tags": [
+      "claude-type:user"
+    ],
+    "content_hash": "9615f0ad7b5915cfc7329241abc70a267186a3dbf136f29ca2b2702698c3341f"
+  }
+]

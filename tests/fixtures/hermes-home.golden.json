@@ -1,0 +1,28 @@
+[
+  {
+    "id": "hermes/memory",
+    "kind": "fact",
+    "title": "Hermes memory",
+    "body": "User prefers plain-text reports with numbered steps.\n§\nStrong coder (AI APIs); deep LLM internals; explain advanced topics.\n§\nRuns weekly review cycles on Sundays.\n",
+    "scope": "global",
+    "source": {
+      "harness": "hermes",
+      "path": "<HOME>/.hermes/memories/MEMORY.md"
+    },
+    "tags": [],
+    "content_hash": "280789d940aba6ae99815c57adde03178874f89aeb0092e972b19ce7a41b46c0"
+  },
+  {
+    "id": "hermes/user",
+    "kind": "user",
+    "title": "Hermes user profile",
+    "body": "Niklas Reckstad (git: niklas.reckstad@gmail.com)\n§\nmacOS user; Hermes headless on Linux VPS.\n§\nEnglish for build/tech reports; German ok casual.\n",
+    "scope": "global",
+    "source": {
+      "harness": "hermes",
+      "path": "<HOME>/.hermes/memories/USER.md"
+    },
+    "tags": [],
+    "content_hash": "c1a58da540dab85c56e9dfe3aaa62cae6c1054c6c0386cda28c87ed26d603a09"
+  }
+]
