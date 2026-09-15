@@ -1,0 +1,28 @@
+[
+  {
+    "id": "hermes/memory",
+    "kind": "fact",
+    "title": "Hermes memory",
+    "body": "Alpha memory.\n§\nBeta memory.\n",
+    "scope": "global",
+    "source": {
+      "harness": "hermes",
+      "path": "/tmp/seedhome/.hermes/memories/MEMORY.md"
+    },
+    "tags": [],
+    "content_hash": "94eb414b36312dc530e62135d042eee6e80ac4b33dacf169856c2b9b6980b154"
+  },
+  {
+    "id": "hermes/user",
+    "kind": "user",
+    "title": "Hermes user profile",
+    "body": "Seed user.\n",
+    "scope": "global",
+    "source": {
+      "harness": "hermes",
+      "path": "/tmp/seedhome/.hermes/memories/USER.md"
+    },
+    "tags": [],
+    "content_hash": "4e35862aa45e6ba3889caca728cff8bb5a60d1f84dce446e64e19c4628c4c782"
+  }
+]

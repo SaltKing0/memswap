@@ -1,0 +1,46 @@
+[package]
+name = "memswap-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+# Standalone: fuzzing runs on nightly with the sanitizer runtime, so this
+# crate is deliberately not part of the parent workspace.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+
+[dependencies.memswap-core]
+path = ".."
+
+# Fuzzing needs the nightly-only sanitizer runtime; `cargo fuzz` selects the
+# toolchain itself. Run from this directory:
+#   cargo +nightly fuzz run index_json
+#   cargo +nightly fuzz run manifest_json
+#   cargo +nightly fuzz run memfile_archive
+
+[[bin]]
+name = "index_json"
+path = "fuzz_targets/index_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "manifest_json"
+path = "fuzz_targets/manifest_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "memfile_archive"
+path = "fuzz_targets/memfile_archive.rs"
+test = false
+doc = false
+bench = false

@@ -7,6 +7,9 @@ members = [
     "crates/memswap-ffi",
     "crates/sample-plugin",
 ]
+# The fuzz crate needs the nightly sanitizer runtime and is driven by
+# `cargo fuzz`, so it stays out of the normal workspace build/CI.
+exclude = ["crates/memswap-core/fuzz"]
 
 [workspace.package]
 version = "0.1.0"
