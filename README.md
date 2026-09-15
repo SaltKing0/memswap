@@ -23,14 +23,17 @@ portable, human-readable files — exactly what memswap stores.
 # build
 cargo build --release
 
-# export your Hermes memory into a portable store
-./target/release/mem export --harness hermes --out memory.memfile
+# export your Hermes memory into a portable store directory
+./target/release/mem export --harness hermes --out memory-store
+
+# pack it into a single shareable file
+./target/release/mem pack --dir memory-store --out memory.memfile
 
 # verify it's intact and tamper-evident
-./target/release/mem verify --dir memory.memfile
+./target/release/mem verify --dir memory-store
 
 # import it into a Hermes home
-./target/release/mem import --harness hermes --dir memory.memfile --dry-run
+./target/release/mem import --harness hermes --dir memory-store --dry-run
 ```
 
 ## CLI
@@ -46,9 +49,9 @@ cargo build --release
 | `mem stats` | Entry counts by harness/kind/scope + chain health |
 | `mem doctor` | Probe harnesses and report status |
 | `mem adapters list` | List built-in adapters |
-| `mem log` / `mem diff` | shipped |
-| `mem keygen` / `mem sign` | shipped |
-| `mem migrate` | M6 |
+| `mem log` / `mem diff` | Commit history and entry-level diff between two commits |
+| `mem keygen` / `mem sign` | ed25519 keypair, detached signature over the store |
+| `mem migrate` | Schema upgrades (M7) |
 
 Exit codes: `0` ok · `1` error · `2` usage · `3` harness not found · `4` verify
 failure · `5` conflict.
@@ -75,6 +78,15 @@ Claude    ─┘     (read/write, provenance-preserving)
 - **Bindings**: `bindings/python` (ctypes, zero deps) and `bindings/node`
   (koffi, one dep) over the FFI cdylib.
 
+## Guarantees (test-enforced)
+
+| Property | How it's enforced |
+|---|---|
+| Tamper-evidence | Every single-byte mutation in `INDEX.json`, `MANIFEST.json`, `commits/`, `objects/` and `refs/` is detected — asserted over the whole corpus, not spot-checked. |
+| Platform-independent hashes | Input is canonicalised to LF on read, so the same memory hashes identically on Windows, macOS and Linux, and a `.memfile` verifies anywhere. |
+| Parser robustness | 3 cargo-fuzz targets (`INDEX.json`, `MANIFEST.json`, `.memfile` archives) — no crashes, no panics, no zip-slip escapes. |
+| No silent drift | Golden corpus: exporting the checked-in fixture homes must reproduce a byte-identical `INDEX.json`; any change to adapter output fails CI. |
+
 ## Roadmap
 
 - **M1 (now):** core store + Hermes adapter + CLI + golden/round-trip/tamper tests.
@@ -86,6 +98,9 @@ Claude    ─┘     (read/write, provenance-preserving)
   publish pending tokens). **Shipped.**
 - **M5.5:** `mem sync` (one-step harness→store→harness), `.memfile` pack/unpack/peek
   transport, `mem stats`. **Shipped.**
+- **M6:** hardening — golden-file corpus for all three adapters, proptest
+  invariants, corruption suite, cargo-fuzz targets. **Shipped.**
+- **M7:** `mem migrate` (schema upgrades).
 
 See `spec/SPEC.md` for the format, `CONTRIBUTING.md` for governance.
 

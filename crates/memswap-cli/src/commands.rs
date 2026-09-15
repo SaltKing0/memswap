@@ -17,7 +17,7 @@ pub const EXIT_CONFLICT: i32 = 5;
 
 #[derive(Args)]
 pub struct InitArgs {
-    /// Directory to create the store in (default ./memory.memfile).
+    /// Directory to create the store in (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
     #[arg(long)]
@@ -34,7 +34,7 @@ pub struct ExportArgs {
     /// Harness home dir (default: ~/.hermes, ~/.codex, ~/.claude).
     #[arg(long)]
     pub home: Option<PathBuf>,
-    /// Output store dir (default ./memory.memfile).
+    /// Output store dir (default ./memory-store).
     #[arg(long)]
     pub out: Option<PathBuf>,
 }
@@ -45,7 +45,7 @@ pub struct ImportArgs {
     pub harness: String,
     #[arg(long)]
     pub home: Option<PathBuf>,
-    /// Store dir to import from (default ./memory.memfile).
+    /// Store dir to import from (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
     /// Print the plan and write nothing.
@@ -58,7 +58,7 @@ pub struct ImportArgs {
 
 #[derive(Args)]
 pub struct VerifyArgs {
-    /// Store dir (default ./memory.memfile).
+    /// Store dir (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
     #[arg(long)]
@@ -116,7 +116,7 @@ pub struct KeygenArgs {
 
 #[derive(Args)]
 pub struct SignArgs {
-    /// Store dir (default ./memory.memfile).
+    /// Store dir (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
     /// File holding the hex ed25519 secret key.
@@ -136,7 +136,7 @@ pub struct MigrateArgs {
 
 #[derive(Args)]
 pub struct PackArgs {
-    /// Store directory to pack (default ./memory.memfile the directory).
+    /// Store directory to pack (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
     /// Output archive path (default <dir>.memfile).
@@ -148,7 +148,7 @@ pub struct PackArgs {
 pub struct UnpackArgs {
     /// .memfile archive to unpack.
     pub archive: PathBuf,
-    /// Destination directory (default ./memory.memfile).
+    /// Destination directory (default ./memory-store).
     #[arg(long)]
     pub out: Option<PathBuf>,
 }
@@ -172,7 +172,7 @@ pub struct SyncArgs {
     /// <base>/.hermes, <base>/.codex, <base>/.claude).
     #[arg(long)]
     pub target_base: Option<PathBuf>,
-    /// Store dir to sync through (default ./memory.memfile).
+    /// Store dir to sync through (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
     /// Merge strategy for imports: replace | merge | keep (default merge).
@@ -185,7 +185,7 @@ pub struct SyncArgs {
 
 #[derive(Args)]
 pub struct StatsArgs {
-    /// Store dir to summarize (default ./memory.memfile).
+    /// Store dir to summarize (default ./memory-store).
     #[arg(long)]
     pub dir: Option<PathBuf>,
 }
@@ -233,7 +233,7 @@ fn default_home(harness: &str) -> PathBuf {
 }
 
 fn store_dir(explicit: Option<PathBuf>) -> PathBuf {
-    explicit.unwrap_or_else(|| PathBuf::from("memory.memfile"))
+    explicit.unwrap_or_else(|| PathBuf::from("memory-store"))
 }
 
 fn print_obj(json: bool, value: &serde_json::Value) {

@@ -75,7 +75,15 @@ Each entry in `INDEX.json` is:
 | `tags` | O | array | Lowercase tags. |
 | `content_hash` | R | string | blake3(body), hex. |
 
-### 4.1 Canonical kind taxonomy
+### 4.1 Text canonicalisation
+
+The canonical form of every text entry is **LF-only**. Adapters normalise CRLF
+and lone CR to LF on read, so a memory written on Windows hashes identically to
+the same memory written on Linux or macOS. `content_hash` is therefore
+platform-independent, and a `.memfile` produced on one platform verifies on any
+other. Writers emit LF.
+
+### 4.2 Canonical kind taxonomy
 
 The spec's canonical kinds are the harness-independent classification. Harness
 native vocabularies (Claude `user|feedback|project|reference`, Codex
