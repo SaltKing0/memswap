@@ -93,8 +93,23 @@ fn index_of(store: &Path) -> String {
 /// `source.path` records where the entry was read from, so it carries the
 /// absolute fixture path (temp dir + pid). Normalize it to a stable
 /// placeholder so the golden file is portable across machines and runs.
+///
+/// Two platform hazards are handled here:
+/// 1. Windows paths use `\`, and JSON escapes them again (`\\`) — the
+///    replacement must match the *escaped* form or it silently does nothing.
+/// 2. The separator itself differs, so both sides are unified to `/`.
+///    (Fixture bodies contain no backslashes; if one ever does, it must be
+///    added to the fixture in its `/` form.)
 fn normalize(index: &str, work: &Path) -> String {
-    index.replace(&work.display().to_string(), "<HOME>")
+    let raw = work.display().to_string();
+    let escaped = raw.replace('\\', "\\\\");
+    index
+        .replace(&escaped, "<HOME>")
+        .replace(&raw, "<HOME>")
+        // After the escaped-path replacement the remaining separators are
+        // still doubled, so collapse pairs before the single-char pass.
+        .replace("\\\\", "/")
+        .replace('\\', "/")
 }
 
 /// The golden INDEX for a fixture lives next to it: `<fixture>.golden.json`.
@@ -110,13 +125,44 @@ fn check_golden(fixture_name: &str, index: &str) {
             golden.display()
         );
     }
-    let expected = fs::read_to_string(&golden).unwrap();
+    // Same separator unification as `normalize`, so goldens stay portable.
+    let expected = fs::read_to_string(&golden).unwrap().replace('\\', "/");
     assert_eq!(
         index,
         expected,
         "INDEX.json drifted from golden file {}",
         golden.display()
     );
+}
+
+/// The golden comparison must be separator-agnostic, otherwise the corpus
+/// passes on Linux/macOS and fails on Windows CI for a reason that has
+/// nothing to do with adapter behaviour. Verified on the actual Windows
+/// shapes rather than assumed.
+#[test]
+fn normalization_handles_windows_paths() {
+    // A Windows INDEX.json, built the way serde would emit it: the real path
+    // with every backslash escaped. Constructing it here instead of
+    // hand-writing the escape levels keeps the test honest about the shape
+    // (hand-written escapes are exactly how this assertion was wrong first).
+    let work = Path::new(r"C:\Users\runneradmin\AppData\Local\Temp\m6-golden-hermes-home-123-0");
+    let real = format!(r"{}\.hermes\memories\MEMORY.md", work.display());
+    let index = format!(
+        r#"[{{"source":{{"path":"{}"}}}}]"#,
+        real.replace('\\', "\\\\")
+    );
+    let got = normalize(&index, work);
+    assert!(
+        got.contains("<HOME>/.hermes/memories/MEMORY.md"),
+        "windows path not normalized: {got}"
+    );
+    assert!(!got.contains('\\'), "backslashes survived: {got}");
+
+    // POSIX shape must keep working.
+    let posix =
+        r#"[{"source":{"path":"/tmp/m6-golden-hermes-home-9-0/.hermes/memories/MEMORY.md"}}]"#;
+    let got = normalize(posix, Path::new("/tmp/m6-golden-hermes-home-9-0"));
+    assert!(got.contains("<HOME>/.hermes/memories/MEMORY.md"), "{got}");
 }
 
 #[test]
