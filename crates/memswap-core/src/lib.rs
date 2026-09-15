@@ -10,6 +10,7 @@ pub mod error;
 pub mod hash;
 pub mod history;
 pub mod manifest;
+pub mod memfile;
 pub mod sign;
 pub mod store;
 

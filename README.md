@@ -40,7 +40,10 @@ cargo build --release
 | `mem init` | Create an empty store |
 | `mem export --harness <h>` | Export a harness's memory into a store |
 | `mem import --harness <h>` | Import a store into a harness memory dir |
+| `mem sync --harnesses a,b,c` | Export harness A into the store, then import into B, C — one step |
 | `mem verify --dir <d>` | Verify integrity / tamper-evidence (exit 4 on failure) |
+| `mem pack` / `mem unpack` / `mem peek` | `.memfile` zip transport: pack a store, restore it, list contents |
+| `mem stats` | Entry counts by harness/kind/scope + chain health |
 | `mem doctor` | Probe harnesses and report status |
 | `mem adapters list` | List built-in adapters |
 | `mem log` / `mem diff` | shipped |
@@ -79,7 +82,10 @@ Claude    ─┘     (read/write, provenance-preserving)
 - **M3:** Codex + Claude Code adapters, merge strategies, golden files. **Shipped.**
 - **M4:** plugin ABI (dlopen, `memswap_plugin_*` C contract), sample plugin,
   FFI expansion, Python + Node bindings, `--json` hardening. **Shipped.**
-- **M5:** packaging (brew, crates.io, pip/npm wrappers).
+- **M5:** packaging (GitHub release matrix + pip/npm wrappers; crates.io/PyPI/npm
+  publish pending tokens). **Shipped.**
+- **M5.5:** `mem sync` (one-step harness→store→harness), `.memfile` pack/unpack/peek
+  transport, `mem stats`. **Shipped.**
 
 See `spec/SPEC.md` for the format, `CONTRIBUTING.md` for governance.
 

@@ -38,6 +38,17 @@ pub enum Command {
     Sign(commands::SignArgs),
     /// Rewrite a store to a new schema_version.
     Migrate(commands::MigrateArgs),
+    /// Pack a store directory into a single .memfile archive.
+    Pack(commands::PackArgs),
+    /// Unpack a .memfile archive into a fresh store directory.
+    Unpack(commands::UnpackArgs),
+    /// List the entries inside a .memfile archive without unpacking.
+    Peek(commands::PeekArgs),
+    /// Two-way sync: export harness memory into the store, then import the
+    /// store into other harnesses (the "make my agents agree" command).
+    Sync(commands::SyncArgs),
+    /// Summarize a store: entries, kinds, sources, chain length.
+    Stats(commands::StatsArgs),
 }
 
 fn main() {

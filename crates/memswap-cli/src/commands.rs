@@ -134,6 +134,62 @@ pub struct MigrateArgs {
     pub dir: Option<PathBuf>,
 }
 
+#[derive(Args)]
+pub struct PackArgs {
+    /// Store directory to pack (default ./memory.memfile the directory).
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+    /// Output archive path (default <dir>.memfile).
+    #[arg(long)]
+    pub out: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct UnpackArgs {
+    /// .memfile archive to unpack.
+    pub archive: PathBuf,
+    /// Destination directory (default ./memory.memfile).
+    #[arg(long)]
+    pub out: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct PeekArgs {
+    /// .memfile archive to inspect.
+    pub archive: PathBuf,
+}
+
+#[derive(Args)]
+pub struct SyncArgs {
+    /// Comma-separated harness list to sync between, e.g. hermes,codex,claude.
+    /// First entry is the source of truth, the rest are updated from the store.
+    #[arg(long, value_delimiter = ',')]
+    pub harnesses: Vec<String>,
+    /// Harness home override for the FIRST harness only (export source).
+    #[arg(long)]
+    pub source_home: Option<PathBuf>,
+    /// Base dir for TARGET harness homes (default $HOME; homes are
+    /// <base>/.hermes, <base>/.codex, <base>/.claude).
+    #[arg(long)]
+    pub target_base: Option<PathBuf>,
+    /// Store dir to sync through (default ./memory.memfile).
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+    /// Merge strategy for imports: replace | merge | keep (default merge).
+    #[arg(long, default_value = "merge")]
+    pub merge: String,
+    /// Export from the source harness but write nothing anywhere.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args)]
+pub struct StatsArgs {
+    /// Store dir to summarize (default ./memory.memfile).
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+}
+
 pub fn run(cmd: crate::Command, json: bool) -> i32 {
     match cmd {
         crate::Command::Init(a) => cmd_init(a, json),
@@ -147,6 +203,11 @@ pub fn run(cmd: crate::Command, json: bool) -> i32 {
         crate::Command::Keygen(a) => cmd_keygen(a, json),
         crate::Command::Sign(a) => cmd_sign(a, json),
         crate::Command::Migrate(_) => not_impl("migrate", "M6"),
+        crate::Command::Pack(a) => cmd_pack(a, json),
+        crate::Command::Unpack(a) => cmd_unpack(a, json),
+        crate::Command::Peek(a) => cmd_peek(a, json),
+        crate::Command::Sync(a) => cmd_sync(a, json),
+        crate::Command::Stats(a) => cmd_stats(a, json),
     }
 }
 
@@ -594,4 +655,283 @@ fn cmd_adapters(a: AdaptersArgs, json: bool) -> i32 {
         },
     }
     EXIT_OK
+}
+
+// =====================================================================
+// pack/unpack/peek – .memfile transport archive (single zip)
+// =====================================================================
+
+fn cmd_pack(a: PackArgs, json: bool) -> i32 {
+    let dir = store_dir(a.dir);
+    let out = a.out.unwrap_or_else(|| dir.with_extension("memfile"));
+    match memswap_core::memfile::pack(&dir, &out) {
+        Ok(path) => {
+            print_obj(
+                json,
+                &serde_json::json!({
+                    "ok": true,
+                    "store": dir.display().to_string(),
+                    "archive": path.display().to_string(),
+                }),
+            );
+            EXIT_OK
+        }
+        Err(Error::NotFound(e)) => {
+            eprintln!("error: {e}");
+            EXIT_NOT_FOUND
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+fn cmd_unpack(a: UnpackArgs, json: bool) -> i32 {
+    let out = store_dir(a.out);
+    match memswap_core::memfile::unpack(&a.archive, &out) {
+        Ok(()) => {
+            print_obj(
+                json,
+                &serde_json::json!({
+                    "ok": true,
+                    "archive": a.archive.display().to_string(),
+                    "store": out.display().to_string(),
+                }),
+            );
+            EXIT_OK
+        }
+        Err(Error::NotFound(e)) | Err(Error::Invalid(e)) => {
+            eprintln!("error: {e}");
+            EXIT_NOT_FOUND
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+fn cmd_peek(a: PeekArgs, json: bool) -> i32 {
+    match memswap_core::memfile::peek_index(&a.archive) {
+        Ok(entries) => {
+            let mut out = serde_json::Map::new();
+            out.insert("ok".into(), true.into());
+            out.insert("archive".into(), a.archive.display().to_string().into());
+            let list: Vec<serde_json::Value> = entries
+                .iter()
+                .map(|e| {
+                    serde_json::json!({
+                        "id": e.id,
+                        "kind": e.kind,
+                        "title": e.title,
+                        "harness": e.source.harness,
+                    })
+                })
+                .collect();
+            out.insert("entries".into(), list.into());
+            print_obj(json, &serde_json::Value::Object(out));
+            EXIT_OK
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            EXIT_ERROR
+        }
+    }
+}
+
+// =====================================================================
+// sync – export harness → store → import into targets
+// =====================================================================
+
+fn cmd_sync(a: SyncArgs, json: bool) -> i32 {
+    if a.harnesses.len() < 2 {
+        eprintln!("error: need at least two harnesses (e.g. --harnesses hermes,codex)");
+        return EXIT_USAGE;
+    }
+    let source = a.harnesses[0].to_lowercase();
+    let targets = &a.harnesses[1..];
+    let dir = store_dir(a.dir);
+    let registry = registry();
+
+    if a.dry_run {
+        print_obj(
+            json,
+            &serde_json::json!({
+                "dry_run": true,
+                "source": source,
+                "targets": targets,
+                "store": dir.display().to_string(),
+            }),
+        );
+        return EXIT_OK;
+    }
+
+    let home = a.source_home.unwrap_or_else(|| default_home(&source));
+    // Detect-first gives the friendly "not detected" error; the read itself
+    // goes through read_harness (which re-detects internally).
+    if registry.detect_one(&source, &home).is_none() {
+        eprintln!(
+            "error: source harness '{source}' not detected under {}",
+            home.display()
+        );
+        return EXIT_NOT_FOUND;
+    }
+    let entries = match registry.read_harness(&source, &home) {
+        Ok(e) => e,
+        Err(Error::Adapter(msg)) => {
+            eprintln!("error: {msg}");
+            return EXIT_NOT_FOUND;
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_ERROR;
+        }
+    };
+
+    // Build / update the store (upsert).
+    let store = match Store::open(&dir) {
+        Ok(s) => s,
+        Err(_) => match Store::init(&dir, "memory", &source, None) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("error: {e}");
+                return EXIT_ERROR;
+            }
+        },
+    };
+    if let Err(e) = store.replace_entries(&entries) {
+        eprintln!("error: {e}");
+        return EXIT_ERROR;
+    }
+
+    // Import into targets.
+    let strategy = match a.merge.as_str() {
+        "replace" => memswap_adapters::MergeStrategy::Replace,
+        "keep" => memswap_adapters::MergeStrategy::Keep,
+        _ => memswap_adapters::MergeStrategy::Merge,
+    };
+
+    let mut results = Vec::new();
+    let target_base = a
+        .target_base
+        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into())));
+    for target in targets {
+        let t = target.to_lowercase();
+        let thome = target_base.join(format!(".{t}"));
+        let tc = match registry.detect_one(&t, &thome) {
+            Some(c) => c,
+            None => {
+                results.push(
+                    serde_json::json!({ "harness": &t, "ok": false, "error": "not detected" }),
+                );
+                continue;
+            }
+        };
+        let _ = tc; // kept; actual write uses registry
+        match registry.write_adapter(&t, &thome, &entries, strategy) {
+            Ok(r) => {
+                results.push(serde_json::json!({
+                    "harness": &t,
+                    "ok": true,
+                    "written": r.written,
+                    "skipped": r.skipped,
+                    "truncated": r.truncated,
+                }));
+            }
+            Err(Error::Adapter(msg)) => {
+                results.push(serde_json::json!({ "harness": &t, "ok": false, "error": msg }));
+            }
+            Err(e) => {
+                results.push(
+                    serde_json::json!({ "harness": &t, "ok": false, "error": e.to_string() }),
+                );
+            }
+        }
+    }
+
+    let all_ok = results.iter().all(|r| r["ok"].as_bool().unwrap_or(false));
+    print_obj(
+        json,
+        &serde_json::json!({
+            "ok": all_ok,
+            "source": source,
+            "store": dir.display().to_string(),
+            "entries": entries.len(),
+            "targets": results,
+        }),
+    );
+    if all_ok {
+        EXIT_OK
+    } else {
+        EXIT_ERROR
+    }
+}
+
+// =====================================================================
+// stats – summarize a store
+// =====================================================================
+
+fn cmd_stats(a: StatsArgs, json: bool) -> i32 {
+    let dir = store_dir(a.dir);
+    let store = match Store::open(&dir) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_NOT_FOUND;
+        }
+    };
+    let entries = match store.read_entries() {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_ERROR;
+        }
+    };
+    let report = match store.verify() {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_ERROR;
+        }
+    };
+
+    let mut by_harness: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    let mut by_kind: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut by_scope: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for e in &entries {
+        *by_harness.entry(e.source.harness.clone()).or_insert(0) += 1;
+        *by_kind.entry(format!("{:?}", e.kind)).or_insert(0) += 1;
+        let scope_str = match e.scope {
+            memswap_core::entry::Scope::Global => "global",
+            memswap_core::entry::Scope::Project => "project",
+        };
+        *by_scope.entry(scope_str.to_string()).or_insert(0) += 1;
+    }
+
+    print_obj(
+        json,
+        &serde_json::json!({
+            "ok": report.ok,
+            "store": dir.display().to_string(),
+            "entries": entries.len(),
+            "by_harness": by_harness,
+            "by_kind": by_kind,
+            "by_scope": by_scope,
+            "chain": {
+                "commits": report.commits,
+                "chain_ok": report.chain_ok,
+                "signature_ok": report.signature_ok,
+            },
+            "objects_ok": report.objects_ok,
+            "refs_ok": report.refs_ok,
+            "manifest_ok": report.manifest_ok,
+        }),
+    );
+    if report.ok {
+        EXIT_OK
+    } else {
+        EXIT_VERIFY
+    }
 }
