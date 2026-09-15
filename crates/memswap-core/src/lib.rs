@@ -11,6 +11,7 @@ pub mod hash;
 pub mod history;
 pub mod manifest;
 pub mod memfile;
+pub mod migrate;
 pub mod sign;
 pub mod store;
 pub mod text;

@@ -149,7 +149,13 @@ symbols. `crates/sample-plugin` is the reference implementation (a toy
 
 - `schema_version` is an integer in `MANIFEST.json`.
 - Additive/relaxing changes = minor; breaking changes = major.
-- `mem migrate --from v1 --to v2` rewrites a store between versions.
+- **v1** = pre-canonicalisation (entry bodies may carry CRLF).
+- **v2** = canonical LF bodies (§4.1); `content_hash` is platform-independent.
+- `mem migrate --to N` rewrites a store forward through the registered steps,
+  appends a commit, and prunes the objects the rewrite orphaned. It is
+  forward-only and refuses unknown or future versions. `--dry-run` reports the
+  change without writing.
+- A migration MUST leave a store that still passes §5 verification.
 
 ## 8. Conformance
 

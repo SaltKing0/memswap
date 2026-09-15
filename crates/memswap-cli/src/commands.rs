@@ -126,10 +126,12 @@ pub struct SignArgs {
 
 #[derive(Args)]
 pub struct MigrateArgs {
-    #[arg(long)]
-    pub from: Option<u32>,
+    /// Rewrite a store to a new schema_version (default: this build's).
     #[arg(long)]
     pub to: Option<u32>,
+    /// Report what would change without writing anything.
+    #[arg(long)]
+    pub dry_run: bool,
     #[arg(long)]
     pub dir: Option<PathBuf>,
 }
@@ -202,7 +204,7 @@ pub fn run(cmd: crate::Command, json: bool) -> i32 {
         crate::Command::Diff(a) => cmd_diff(a, json),
         crate::Command::Keygen(a) => cmd_keygen(a, json),
         crate::Command::Sign(a) => cmd_sign(a, json),
-        crate::Command::Migrate(_) => not_impl("migrate", "M6"),
+        crate::Command::Migrate(a) => cmd_migrate(a, json),
         crate::Command::Pack(a) => cmd_pack(a, json),
         crate::Command::Unpack(a) => cmd_unpack(a, json),
         crate::Command::Peek(a) => cmd_peek(a, json),
@@ -214,11 +216,6 @@ pub fn run(cmd: crate::Command, json: bool) -> i32 {
 /// The registry the CLI uses: built-ins + dynamic plugins (M4).
 fn registry() -> AdapterRegistry {
     AdapterRegistry::with_plugins()
-}
-
-fn not_impl(cmd: &str, milestone: &str) -> i32 {
-    eprintln!("`mem {cmd}` is not implemented in M1 (planned for {milestone}).");
-    EXIT_ERROR
 }
 
 fn default_home(harness: &str) -> PathBuf {
@@ -933,5 +930,66 @@ fn cmd_stats(a: StatsArgs, json: bool) -> i32 {
         EXIT_OK
     } else {
         EXIT_VERIFY
+    }
+}
+
+/// `mem migrate` — rewrite a store to a newer schema_version.
+fn cmd_migrate(a: MigrateArgs, json: bool) -> i32 {
+    let dir = store_dir(a.dir);
+    let store = match Store::open(&dir) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_NOT_FOUND;
+        }
+    };
+    let to =
+        a.to.unwrap_or(memswap_core::manifest::CURRENT_SCHEMA_VERSION);
+
+    let report = match memswap_core::migrate::migrate(&store, to, a.dry_run) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return EXIT_ERROR;
+        }
+    };
+
+    // A migration that rewrote bodies must leave a store that still verifies;
+    // reporting "ok" without checking would be exactly the silent-corruption
+    // failure mode the chain exists to prevent.
+    let verified = if report.dry_run || report.noop {
+        None
+    } else {
+        match store.verify() {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("error: post-migration verify failed: {e}");
+                return EXIT_ERROR;
+            }
+        }
+    };
+
+    print_obj(
+        json,
+        &serde_json::json!({
+            "ok": verified.as_ref().map(|v| v.ok).unwrap_or(true),
+            "store": dir.display().to_string(),
+            "from": report.from,
+            "to": report.to,
+            "noop": report.noop,
+            "dry_run": report.dry_run,
+            "entries": report.entries,
+            "entries_rewritten": report.entries_rewritten,
+            "objects_pruned": report.objects_pruned,
+            "applied": report.applied,
+            "chain_ok": verified.as_ref().map(|v| v.chain_ok),
+            "commits": verified.as_ref().map(|v| v.commits),
+        }),
+    );
+
+    if verified.as_ref().map(|v| !v.ok).unwrap_or(false) {
+        EXIT_VERIFY
+    } else {
+        EXIT_OK
     }
 }

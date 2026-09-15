@@ -51,7 +51,7 @@ cargo build --release
 | `mem adapters list` | List built-in adapters |
 | `mem log` / `mem diff` | Commit history and entry-level diff between two commits |
 | `mem keygen` / `mem sign` | ed25519 keypair, detached signature over the store |
-| `mem migrate` | Schema upgrades (M7) |
+| `mem migrate` | Schema upgrades (v1→v2 canonicalises line endings) |
 
 Exit codes: `0` ok · `1` error · `2` usage · `3` harness not found · `4` verify
 failure · `5` conflict.
@@ -100,7 +100,8 @@ Claude    ─┘     (read/write, provenance-preserving)
   transport, `mem stats`. **Shipped.**
 - **M6:** hardening — golden-file corpus for all three adapters, proptest
   invariants, corruption suite, cargo-fuzz targets. **Shipped.**
-- **M7:** `mem migrate` (schema upgrades).
+- **M7:** `mem migrate` — forward-only schema upgrades (v1→v2 canonicalises
+  entry bodies to LF). **Shipped.**
 
 See `spec/SPEC.md` for the format, `CONTRIBUTING.md` for governance.
 

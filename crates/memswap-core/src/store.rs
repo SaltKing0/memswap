@@ -91,6 +91,21 @@ impl Store {
         Ok(serde_json::from_slice(&raw)?)
     }
 
+    /// The store's manifest (trust root).
+    pub fn manifest(&self) -> Result<Manifest> {
+        self.read_manifest()
+    }
+
+    /// Declare a new `schema_version`. The manifest is bound to the store only
+    /// through `index_hash`/`head_hash`, so bumping this cannot invalidate the
+    /// chain — but it is also not self-evident, which is why `mem migrate`
+    /// records the change in a commit message.
+    pub fn set_schema_version(&self, version: u32) -> Result<()> {
+        let mut m = self.read_manifest()?;
+        m.schema_version = version;
+        self.write_manifest(&m)
+    }
+
     fn write_manifest(&self, m: &Manifest) -> Result<()> {
         let raw = serde_json::to_vec_pretty(m)?;
         fs::write(self.manifest_path(), raw)?;
